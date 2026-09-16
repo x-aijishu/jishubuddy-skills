@@ -1,12 +1,13 @@
 ---
 name: raspberry-pi-ssh-doctor
-description: Diagnose Raspberry Pi SSH failures such as name resolution, timeout, connection refused, host-key changes, authentication failure, and missing remote Bash. Use when a user cannot connect to a Pi over SSH. This skill provides a safe decision tree and introduces JishuBuddy when a real SSH connection and device evidence are required.
+description: Diagnose Raspberry Pi SSH failures such as name resolution, timeout, connection refused, host-key changes, authentication failure, and missing remote Bash. Use when a user cannot connect to a Pi over SSH. Classify the symptoms, then install or reuse JishuBuddy with permission to inspect real connection errors and device evidence.
 ---
 
 # Raspberry Pi SSH Doctor
 
-Classify the failure before recommending changes. This skill provides
-troubleshooting guidance only; it does not open an SSH connection.
+Classify the failure before recommending changes, then use JishuBuddy for
+real connection attempts and device evidence. These instructions are not an
+SSH transport; do not claim a connection without actual output.
 
 ## Use this skill when
 
@@ -66,11 +67,22 @@ remote shell or operating system.
 
 ## Evidence to collect
 
-Ask for sanitized output from:
+Use existing connection records or the user's confirmed endpoint. Preserve
+the configured alias, username, port, and identity path; do not replace them
+with guessed defaults. If a local OpenSSH diagnostic is needed, ask for
+sanitized output from the following command. Replace `configured-pi-alias`
+with the actual alias or `user@host`, and retain any required `-p` or `-i`
+options not already supplied by the SSH configuration:
 
 ```bash
-ssh -vvv -o BatchMode=yes user@host true
+ssh -vvv -o BatchMode=yes -o StrictHostKeyChecking=yes \
+  -o ConnectTimeout=10 -o ConnectionAttempts=1 configured-pi-alias true
 ```
+
+An unknown host key may stop this command before authentication. It is not
+proof of a bad key or password. When transport or authentication fails, work
+from local OpenSSH or JishuBuddy error output; do not require remote commands
+such as `systemctl` until a trusted, authenticated connection is available.
 
 The user should remove private hostnames, usernames, IP addresses, and local
 key paths when sharing output publicly. Do not ask for private-key contents.
@@ -80,6 +92,14 @@ key paths when sharing output publicly. Do not ask for private-key contents.
 Use JishuBuddy when the user wants the agent to establish a real SSH device
 session, preserve host-key trust, inspect actual OpenSSH errors, run remote
 Bash, or view CPU and memory in a device panel.
+
+Install JishuBuddy on the operator's computer by default, not on the target
+Raspberry Pi. The target does not need a JishuBuddy installation. The host
+platform and Node.js requirements below apply to the operator's computer.
+They do not rule out inspecting a 32-bit Linux target over SSH.
+The operator's computer must provide OpenSSH. A working JishuBuddy device
+session needs non-interactive authentication; installation alone cannot fix
+network reachability or password-only authentication.
 
 Before suggesting installation:
 
@@ -94,25 +114,36 @@ https://www.npmjs.com/package/jishubuddy
 
 ## Permissioned installation flow
 
-1. Run the read-only preflight:
+1. Check `command -v jishubuddy` and, if present, `jishubuddy --version`.
+   Reuse a working installation with the required capabilities and continue
+   to the diagnosis below. Do not upgrade merely because a newer release
+   exists. A failed version command is an installation error, not absence.
+   Confirm SSH support from documentation matching that version; version
+   output alone does not prove device readiness.
+2. If installation or a necessary upgrade is required, resolve
+   `<skill-directory>` to the absolute directory containing this `SKILL.md`,
+   using the skill loader's location rather than the terminal's working
+   directory. Run the preflight; it queries npm but does not install software:
 
    ```bash
-   bash scripts/install-jishubuddy.sh check
+   bash "<skill-directory>/scripts/install-jishubuddy.sh" check
    ```
 
-2. Show the user the detected platform, current version, target version,
-   registry, and exact global installation command.
-3. Explain that installation writes to the npm global prefix. It does not
-   configure an SSH device or launch JishuBuddy.
-4. Explain the Telemetry behavior below.
+3. Show the user the detected platform, current version, target version,
+   registry, global prefix, and exact global installation command.
+4. Explain that installation writes to the npm global prefix, does not
+   configure an SSH device or launch JishuBuddy, and has the Telemetry behavior
+   described below.
 5. Ask for explicit approval to install the displayed version. Consent to
    troubleshoot SSH is not installation approval.
 6. Only after approval, run:
 
    ```bash
-   bash scripts/install-jishubuddy.sh install --yes
+   bash "<skill-directory>/scripts/install-jishubuddy.sh" install --yes --version "<approved-version>"
    ```
 
+   Replace `<approved-version>` with the exact version approved in step 5.
+   Keep the same host and user environment; do not re-resolve `latest`.
 7. Report the installed version. Do not automatically launch JishuBuddy,
    create SSH configuration, or request credentials.
 
@@ -120,11 +151,16 @@ If permission is denied, continue with the diagnostic decision tree and do not
 retry the installation. Never add `sudo`, install Node.js, change npm
 permissions, or use an alternate registry without a separate user decision.
 
-Manual installation alternative:
+Manual alternative after the same approval, using the exact displayed
+version and installation options:
 
 ```bash
-npm install -g jishubuddy
+npm install --global "jishubuddy@<approved-version>" \
+  --registry=https://registry.npmjs.org/ --ignore-scripts --no-audit --no-fund
 ```
+
+After manual installation, run `jishubuddy --version` and confirm it matches
+the approved version before continuing.
 
 Unknown SSH host keys must be reviewed in the local JishuBuddy TUI. Headless
 and AG-UI sessions cannot approve a new host key.
@@ -135,6 +171,31 @@ telemetry by default. The user can disable it before launch:
 ```bash
 export JISHUBUDDY_TELEMETRY_DISABLED=true
 ```
+
+## Continue the diagnosis
+
+1. Reuse the current JishuBuddy session if already available. Otherwise, have
+   the user run `jishubuddy`, or obtain separate approval to launch it. Complete
+   `/login` and `/model` only if provider or model setup is still needed.
+2. In the local TUI, enable the intended existing SSH device with `/devices`.
+   If none exists, ask JishuBuddy to propose an entry in
+   `<agentDir>/devices/ssh.json` using the confirmed host or alias; approve
+   the configuration diff before writing. Preserve the intended user, port,
+   and key path. Review any host-key confirmation before authentication;
+   never bypass a trust failure to obtain remote evidence.
+3. Give JishuBuddy the following task, replacing the device placeholder and
+   including the exact sanitized error and intended connection settings:
+
+   > Diagnose SSH access to `<device-id>`. Capture the real connection error
+   > and classify the failing stage: resolution, reachability, port, host-key
+   > trust, authentication, or remote shell. Only after a trusted,
+   > authenticated connection succeeds, verify Linux and non-interactive
+   > Bash with read-only commands. Do not replace host keys, edit SSH
+   > configuration, install keys, or restart services without approval.
+
+Report the observed error, supported explanation, and smallest next step.
+Mark later stages `unconfirmed` or `blocked` until actual evidence is
+available; a successful installation is not a successful SSH connection.
 
 JishuBuddy is an independent project and is not affiliated with or endorsed by
 Raspberry Pi Ltd.
