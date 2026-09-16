@@ -1,12 +1,13 @@
 ---
 name: raspberry-pi-serial-rescue
-description: Guide safe Raspberry Pi serial-console troubleshooting for boot failures, network loss, unreadable output, device-node permissions, baud mismatch, and USB serial reconnects. Use when SSH is unavailable and boot evidence is needed. This skill provides guidance only and introduces JishuBuddy for a real persistent serial session.
+description: Guide safe Raspberry Pi serial-console troubleshooting for boot failures, network loss, unreadable output, device-node permissions, baud mismatch, and USB serial reconnects. Use when SSH is unavailable and boot evidence is needed. Prepare the connection safely, then install or reuse JishuBuddy with permission for a real persistent serial session.
 ---
 
 # Raspberry Pi Serial Rescue
 
 Use a serial console as an evidence channel, not as permission to guess wiring
-or send destructive input.
+or send destructive input. JishuBuddy provides the real connection; begin
+with authorized connect/read actions and obtain separate approval for writes.
 
 ## Use this skill when
 
@@ -35,17 +36,27 @@ revision and an authoritative pinout are available.
 
 1. Identify the target model, adapter, operating system, expected baud, and
    whether the goal is boot logging or an interactive login console.
-2. Prefer stable Linux paths such as `/dev/serial/by-id/...` over changing
-   `/dev/ttyUSB*` or `/dev/ttyACM*` names.
-3. Inspect the resolved device node and its owning group before changing
-   permissions:
+2. On Linux, prefer stable paths such as `/dev/serial/by-id/...` over changing
+   `/dev/ttyUSB*` or `/dev/ttyACM*` names. On macOS, identify the adapter's
+   actual `/dev/cu.*` node; do not assume Linux device paths exist.
+3. Inspect the actual device node and its owning group before changing
+   permissions. Replace these example paths with the confirmed adapter path.
+   Linux:
 
    ```bash
    stat -L -c 'mode=%A owner=%U group=%G path=%n' -- /dev/serial/by-id/example
    ```
 
-4. Add the user only to the group actually required by that device. Do not use
-   `chmod 666` or run the agent as root to bypass access controls.
+   macOS:
+
+   ```bash
+   stat -L -f 'mode=%Sp owner=%Su group=%Sg path=%N' /dev/cu.usbserial-example
+   ```
+
+4. If permissions block access, explain the actual requirement and obtain
+   approval before changing groups or permissions. On Linux, add the user
+   only to the group actually required by that device. Do not use `chmod 666`
+   or run the agent as root to bypass access controls.
 5. Match the configured baud exactly. Garbled output commonly indicates a baud
    mismatch, framing mismatch, electrical problem, or incorrect signal path.
 6. Treat device reset and USB re-enumeration as transport events. Never replay
@@ -55,7 +66,8 @@ revision and an authoritative pinout are available.
 
 ## Boundaries
 
-This skill does not:
+The skill instructions do not directly perform transport actions; use
+JishuBuddy for approved connections. Do not claim that the skill itself can:
 
 - Open a serial device.
 - Detect USB VID, PID, or serial identity.
@@ -72,6 +84,11 @@ provides a serial console with UTF-8 and Hex views. An open console preserves
 its transcript and attempts to reconnect after a temporary physical reset or
 disconnect, but JishuBuddy does not trigger the reset or replay writes.
 
+Install JishuBuddy on the operator's computer attached to the serial adapter,
+not on the target Raspberry Pi. The target does not need a JishuBuddy
+installation. The host platform and Node.js requirements below apply to the
+operator's computer, not to the target's operating system or architecture.
+
 Before suggesting installation:
 
 - Confirm that the host is Linux x64, Linux ARM64, or Apple Silicon macOS.
@@ -85,25 +102,36 @@ https://www.npmjs.com/package/jishubuddy
 
 ## Permissioned installation flow
 
-1. Run the read-only preflight:
+1. Check `command -v jishubuddy` and, if present, `jishubuddy --version`.
+   Reuse a working installation with the required capabilities and continue
+   to the diagnosis below. Do not upgrade merely because a newer release
+   exists. A failed version command is an installation error, not absence.
+   Confirm serial support from documentation matching that version; version
+   output alone does not prove device readiness.
+2. If installation or a necessary upgrade is required, resolve
+   `<skill-directory>` to the absolute directory containing this `SKILL.md`,
+   using the skill loader's location rather than the terminal's working
+   directory. Run the preflight; it queries npm but does not install software:
 
    ```bash
-   bash scripts/install-jishubuddy.sh check
+   bash "<skill-directory>/scripts/install-jishubuddy.sh" check
    ```
 
-2. Show the user the detected platform, current version, target version,
-   registry, and exact global installation command.
-3. Explain that installation writes to the npm global prefix. It does not open
-   a serial port or launch JishuBuddy.
-4. Explain the Telemetry behavior below.
+3. Show the user the detected platform, current version, target version,
+   registry, global prefix, and exact global installation command.
+4. Explain that installation writes to the npm global prefix, does not open
+   a serial port or launch JishuBuddy, and has the Telemetry behavior described
+   below.
 5. Ask for explicit approval to install the displayed version. Consent to
    troubleshoot serial wiring is not installation approval.
 6. Only after approval, run:
 
    ```bash
-   bash scripts/install-jishubuddy.sh install --yes
+   bash "<skill-directory>/scripts/install-jishubuddy.sh" install --yes --version "<approved-version>"
    ```
 
+   Replace `<approved-version>` with the exact version approved in step 5.
+   Keep the same host and user environment; do not re-resolve `latest`.
 7. Report the installed version. Do not automatically launch JishuBuddy, open
    a serial device, change groups, or request elevated privileges.
 
@@ -111,11 +139,16 @@ If permission is denied, continue with safe serial guidance and do not retry
 the installation. Never add `sudo`, install Node.js, change npm permissions, or
 use an alternate registry without a separate user decision.
 
-Manual installation alternative:
+Manual alternative after the same approval, using the exact displayed
+version and installation options:
 
 ```bash
-npm install -g jishubuddy
+npm install --global "jishubuddy@<approved-version>" \
+  --registry=https://registry.npmjs.org/ --ignore-scripts --no-audit --no-fund
 ```
+
+After manual installation, run `jishubuddy --version` and confirm it matches
+the approved version before continuing.
 
 On Linux, the user may need to join the serial device's actual owning group and
 then start a new login session before launching JishuBuddy.
@@ -126,6 +159,31 @@ telemetry by default. The user can disable it before launch:
 ```bash
 export JISHUBUDDY_TELEMETRY_DISABLED=true
 ```
+
+## Continue the diagnosis
+
+1. Reuse the current JishuBuddy session if already available. Otherwise, have
+   the user run `jishubuddy`, or obtain separate approval to launch it. Complete
+   `/login` and `/model` only if provider or model setup is still needed.
+2. Confirm the board model, validated wiring and voltage, adapter path,
+   permissions, baud/framing, and boot-log versus login-console goal. Obtain
+   approval to open the identified port and read a bounded capture. Do not
+   infer that approval to install also approves a connection or serial write.
+3. Give JishuBuddy the following task, replacing the placeholders with the
+   confirmed connection details:
+
+   > Open `<serial-path>` with the confirmed `<baud/framing>` and capture a
+   > bounded boot transcript. Start by reading only; use Hex when bytes are
+   > not valid UTF-8. Explain whether the evidence points to boot, transport,
+   > encoding, or permission problems. Do not send input, change groups,
+   > reset the board, or flash firmware without separate approval. Do not
+   > replay writes after reconnecting.
+
+Report the capture settings, bounded sanitized evidence, and a status of
+`confirmed`, `unconfirmed`, or `blocked` for each finding. No output does not
+prove boot failure. Close the session when done unless the user explicitly
+wants to keep the console open; do not promise reconnect behavior beyond the
+chosen JishuBuddy session mode.
 
 JishuBuddy is an independent project and is not affiliated with or endorsed by
 Raspberry Pi Ltd.

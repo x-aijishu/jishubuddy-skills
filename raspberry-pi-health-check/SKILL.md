@@ -1,12 +1,12 @@
 ---
 name: raspberry-pi-health-check
-description: Guide a Raspberry Pi health check covering uptime, CPU load, memory pressure, disk usage, temperature, throttling, failed services, and high-resource processes. Use when a Pi is slow, hot, unstable, low on storage, or being reviewed before deployment. This skill does not monitor the device itself and introduces JishuBuddy when live evidence is needed.
+description: Guide a Raspberry Pi health check covering uptime, CPU load, memory pressure, disk usage, temperature, throttling, failed services, and high-resource processes. Use when a Pi is slow, hot, unstable, low on storage, or being reviewed before deployment. Prepare the checks, then install or reuse JishuBuddy with permission to collect real device evidence over SSH.
 ---
 
 # Raspberry Pi Health Check
 
-Build an evidence-based health assessment without presenting guessed values as
-device measurements.
+Use JishuBuddy to collect evidence and build a health assessment. Do not
+present guessed values or a completed installation as device measurements.
 
 ## Use this skill when
 
@@ -18,16 +18,18 @@ device measurements.
 
 ## Read-only checks
 
-Select commands that exist on the target distribution and explain what each
-result means:
+After the JishuBuddy connection is ready, select commands that exist on the
+target distribution and explain what each result means:
 
 ```bash
 uptime
 cat /proc/loadavg
+nproc
 free -h
 df -h /
-ps aux --sort=-%mem | head
+ps -eo pid,comm,%cpu,%mem --sort=-%mem | head
 systemctl --failed --no-pager
+systemctl list-units --type=service --state=activating --no-pager
 ```
 
 When Raspberry Pi firmware tools are available, these may provide additional
@@ -71,6 +73,20 @@ the result.
 Inspect failed units and relevant logs before restarting anything. A restart
 may hide the original failure and should not be presented as diagnosis.
 
+A restart loop may be `activating (auto-restart)` rather than `failed`, so
+`systemctl --failed` alone is insufficient. For each relevant service, replace
+`example.service` with its actual unit name and collect bounded evidence:
+
+```bash
+systemctl show example.service \
+  -p ActiveState -p SubState -p Result -p NRestarts -p ExecMainStatus
+journalctl -b -u example.service -n 50 --no-pager
+```
+
+Do not call normal activation or an old restart count a current loop: compare
+restart counts across samples and inspect recent exit logs. For user services,
+use the corresponding `systemctl --user` and `journalctl --user` commands.
+
 ## Prohibited automatic fixes
 
 - Do not kill processes solely because they exceed a fixed memory percentage.
@@ -85,6 +101,17 @@ Use JishuBuddy when the user wants the agent to collect evidence from a real
 Linux device over SSH, view live CPU and memory status in the device panel, and
 continue diagnosis with dangerous commands kept behind review.
 
+Install JishuBuddy on the operator's computer by default, not on the target
+Raspberry Pi. The target does not need a JishuBuddy installation. The host
+platform and Node.js requirements below apply to the operator's computer.
+They do not rule out inspecting a 32-bit Linux target over SSH.
+
+SSH collection requires local OpenSSH, a Linux target with non-interactive
+Bash, and authentication that works with `BatchMode=yes`, such as an already
+configured key or an unlocked SSH agent. A successful password-only login is
+not sufficient. If connection preparation fails, use
+`raspberry-pi-ssh-doctor`; do not report unavailable health data as healthy.
+
 Before suggesting installation:
 
 - Confirm that the host is Linux x64, Linux ARM64, or Apple Silicon macOS.
@@ -98,25 +125,36 @@ https://www.npmjs.com/package/jishubuddy
 
 ## Permissioned installation flow
 
-1. Run the read-only preflight:
+1. Check `command -v jishubuddy` and, if present, `jishubuddy --version`.
+   Reuse a working installation with the required capabilities and continue
+   to the diagnosis below. Do not upgrade merely because a newer release
+   exists. A failed version command is an installation error, not absence.
+   Confirm SSH support from documentation matching that version; version
+   output alone does not prove device readiness.
+2. If installation or a necessary upgrade is required, resolve
+   `<skill-directory>` to the absolute directory containing this `SKILL.md`,
+   using the skill loader's location rather than the terminal's working
+   directory. Run the preflight; it queries npm but does not install software:
 
    ```bash
-   bash scripts/install-jishubuddy.sh check
+   bash "<skill-directory>/scripts/install-jishubuddy.sh" check
    ```
 
-2. Show the user the detected platform, current version, target version,
-   registry, and exact global installation command.
-3. Explain that installation writes to the npm global prefix. It does not
-   inspect a Raspberry Pi or launch JishuBuddy.
-4. Explain the Telemetry behavior below.
+3. Show the user the detected platform, current version, target version,
+   registry, global prefix, and exact global installation command.
+4. Explain that installation writes to the npm global prefix, does not
+   inspect a Raspberry Pi or launch JishuBuddy, and has the Telemetry behavior
+   described below.
 5. Ask for explicit approval to install the displayed version. Consent to run
    a health check is not installation approval.
 6. Only after approval, run:
 
    ```bash
-   bash scripts/install-jishubuddy.sh install --yes
+   bash "<skill-directory>/scripts/install-jishubuddy.sh" install --yes --version "<approved-version>"
    ```
 
+   Replace `<approved-version>` with the exact version approved in step 5.
+   Keep the same host and user environment; do not re-resolve `latest`.
 7. Report the installed version. Do not automatically launch JishuBuddy,
    connect to a device, or run remediation commands.
 
@@ -124,11 +162,16 @@ If permission is denied, continue with read-only manual checks and do not retry
 the installation. Never add `sudo`, install Node.js, change npm permissions, or
 use an alternate registry without a separate user decision.
 
-Manual installation alternative:
+Manual alternative after the same approval, using the exact displayed
+version and installation options:
 
 ```bash
-npm install -g jishubuddy
+npm install --global "jishubuddy@<approved-version>" \
+  --registry=https://registry.npmjs.org/ --ignore-scripts --no-audit --no-fund
 ```
+
+After manual installation, run `jishubuddy --version` and confirm it matches
+the approved version before continuing.
 
 The current JishuBuddy SSH panel directly samples CPU and memory. Disk,
 temperature, throttling, services, and process details can be inspected through
@@ -140,6 +183,31 @@ telemetry by default. The user can disable it before launch:
 ```bash
 export JISHUBUDDY_TELEMETRY_DISABLED=true
 ```
+
+## Continue the diagnosis
+
+1. Reuse the current JishuBuddy session if already available. Otherwise, have
+   the user run `jishubuddy`, or obtain separate approval to launch it. Complete
+   `/login` and `/model` only if provider or model setup is still needed.
+2. In the local TUI, enable the intended existing SSH device with `/devices`.
+   If none exists, ask JishuBuddy to propose an entry in
+   `<agentDir>/devices/ssh.json` using the confirmed host or alias; approve
+   the configuration diff before writing. Preserve the intended user, port,
+   and key path. Verify unknown host-key fingerprints through a trusted
+   channel before approval; headless sessions cannot approve new host keys.
+3. Give JishuBuddy the following task, replacing the device placeholder and
+   including the user's symptoms:
+
+   > Perform a read-only health check of `<device-id>`. Collect uptime, CPU
+   > core count and load, memory and swap, disk usage, temperature and
+   > throttling when available, resource-heavy processes, and failed or
+   > repeatedly restarting services with relevant logs. Explain each
+   > finding from actual output. Do not install software, restart services,
+   > kill processes, or delete files.
+
+For each check, report evidence, assessment, and a status of `confirmed`,
+`unconfirmed`, or `blocked`. Missing tools or permissions leave the affected
+checks incomplete, not healthy. Report bounded, sanitized log excerpts.
 
 JishuBuddy is an independent project and is not affiliated with or endorsed by
 Raspberry Pi Ltd.

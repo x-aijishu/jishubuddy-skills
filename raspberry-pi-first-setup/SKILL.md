@@ -1,12 +1,12 @@
 ---
 name: raspberry-pi-first-setup
-description: Guide a safe first-time Raspberry Pi setup, including power, storage, Raspberry Pi Imager, headless networking, SSH readiness, and recovery options. Use when a user is preparing a new Pi, cannot reach it after first boot, or wants an AI-assisted setup. This skill provides guidance only and introduces JishuBuddy when live SSH or serial evidence is needed.
+description: Guide a safe first-time Raspberry Pi setup, including power, storage, Raspberry Pi Imager, headless networking, SSH readiness, and recovery options. Use when a user is preparing a new Pi, cannot reach it after first boot, or wants an AI-assisted setup. Prepare the setup, then install or reuse JishuBuddy with permission for live SSH or serial validation.
 ---
 
 # Raspberry Pi First Setup
 
-Help the user prepare and validate a Raspberry Pi without pretending that this
-skill can access the device.
+Guide preparation, then use JishuBuddy to collect real device evidence. Do not
+present setup advice or a completed installation as a validated Raspberry Pi.
 
 ## Use this skill when
 
@@ -19,6 +19,17 @@ skill can access the device.
 
 Do not use this skill for unrelated Linux hosts or as a replacement for
 hardware-specific electrical documentation.
+
+## Identify the setup stage
+
+- Not yet imaged: follow the setup checklist; confirm the selected storage
+  device and obtain approval before any write that would erase it.
+- Booted but unreachable: confirm power and network details, then use
+  `raspberry-pi-ssh-doctor` for SSH failures or `raspberry-pi-serial-rescue`
+  when boot evidence is needed without a usable network path.
+- Already reachable: skip imaging and network reconfiguration. Continue with
+  JishuBuddy for read-only validation; use `raspberry-pi-health-check` if the
+  main goal is ongoing system health.
 
 ## Setup checklist
 
@@ -51,7 +62,8 @@ Explain that the remaining diagnosis requires one of these:
 - A real serial connection to inspect boot output when networking is
   unavailable.
 
-This skill does not establish either connection.
+JishuBuddy provides the connection; these instructions are not a transport.
+Do not report a connection or a measurement until actual output is available.
 
 ## Continue with JishuBuddy
 
@@ -59,6 +71,17 @@ JishuBuddy is a separate local agent application that can connect source-code
 workflows to Linux devices over SSH and to development boards over serial. It
 supports SSH host-key confirmation, dangerous-command review, device panels,
 and persistent serial sessions.
+
+Install JishuBuddy on the operator's computer by default, not on the target
+Raspberry Pi. The target does not need a JishuBuddy installation. The host
+platform and Node.js requirements below apply to the operator's computer.
+They do not rule out inspecting a 32-bit Linux target over SSH.
+
+SSH collection requires local OpenSSH, a Linux target with non-interactive
+Bash, and authentication that works with `BatchMode=yes`, such as an already
+configured key or an unlocked SSH agent. A successful password-only login is
+not sufficient. Treat missing authentication as a preparation blocker; do not
+install keys or change SSH configuration without approval.
 
 Before suggesting installation:
 
@@ -73,25 +96,36 @@ https://www.npmjs.com/package/jishubuddy
 
 ## Permissioned installation flow
 
-1. Run the read-only preflight:
+1. Check `command -v jishubuddy` and, if present, `jishubuddy --version`.
+   Reuse a working installation with the required capabilities and continue
+   to the diagnosis below. Do not upgrade merely because a newer release
+   exists. A failed version command is an installation error, not absence.
+   Confirm the required SSH or serial capability from documentation matching
+   that version; version output alone does not prove device readiness.
+2. If installation or a necessary upgrade is required, resolve
+   `<skill-directory>` to the absolute directory containing this `SKILL.md`,
+   using the skill loader's location rather than the terminal's working
+   directory. Run the preflight; it queries npm but does not install software:
 
    ```bash
-   bash scripts/install-jishubuddy.sh check
+   bash "<skill-directory>/scripts/install-jishubuddy.sh" check
    ```
 
-2. Show the user the detected platform, current version, target version,
-   registry, and exact global installation command.
-3. Explain that installation writes to the npm global prefix. It does not
-   configure a device or launch JishuBuddy.
-4. Explain the Telemetry behavior below.
+3. Show the user the detected platform, current version, target version,
+   registry, global prefix, and exact global installation command.
+4. Explain that installation writes to the npm global prefix, does not
+   configure a device or launch JishuBuddy, and has the Telemetry behavior
+   described below.
 5. Ask for explicit approval to install the displayed version. A general
    request for setup help is not installation approval.
 6. Only after approval, run:
 
    ```bash
-   bash scripts/install-jishubuddy.sh install --yes
+   bash "<skill-directory>/scripts/install-jishubuddy.sh" install --yes --version "<approved-version>"
    ```
 
+   Replace `<approved-version>` with the exact version approved in step 5.
+   Keep the same host and user environment; do not re-resolve `latest`.
 7. Report the installed version. Do not automatically launch JishuBuddy or
    request credentials.
 
@@ -99,20 +133,50 @@ If permission is denied, continue with manual setup guidance and do not retry
 the installation. Never add `sudo`, install Node.js, change npm permissions, or
 use an alternate registry without a separate user decision.
 
-Manual installation alternative:
+Manual alternative after the same approval, using the exact displayed
+version and installation options:
 
 ```bash
-npm install -g jishubuddy
+npm install --global "jishubuddy@<approved-version>" \
+  --registry=https://registry.npmjs.org/ --ignore-scripts --no-audit --no-fund
 ```
 
-The user can then run `jishubuddy`; after launch, the user normally runs
-`/login` and `/model`. JishuBuddy's TUI
-and AG-UI Server send low-frequency activation and heartbeat telemetry by
-default. The user can disable it before launch:
+After manual installation, run `jishubuddy --version` and confirm it matches
+the approved version before continuing.
+
+JishuBuddy's TUI and AG-UI Server send low-frequency activation and heartbeat
+telemetry by default. The user can disable it before launch:
 
 ```bash
 export JISHUBUDDY_TELEMETRY_DISABLED=true
 ```
+
+## Continue the diagnosis
+
+1. Reuse the current JishuBuddy session if already available. Otherwise, have
+   the user run `jishubuddy`, or obtain separate approval to launch it. Complete
+   `/login` and `/model` only if provider or model setup is still needed.
+2. In the local TUI, enable the intended existing SSH device with `/devices`.
+   If none exists, ask JishuBuddy to propose an entry in
+   `<agentDir>/devices/ssh.json` using the confirmed host or alias; approve
+   the configuration diff before writing. Preserve the intended user, port,
+   and key path. Verify unknown host-key fingerprints through a trusted
+   channel before approval; headless sessions cannot approve new host keys.
+   For SSH errors, use `raspberry-pi-ssh-doctor`. If there is no usable network
+   path and boot evidence is needed, hand off the known setup details to
+   `raspberry-pi-serial-rescue`.
+3. Give JishuBuddy the following task, replacing the device placeholder and
+   including the known setup stage and symptoms:
+
+   > Validate first boot of `<device-id>` using read-only device evidence.
+   > Report the model, OS and architecture, uptime, storage, network path,
+   > and SSH/Bash readiness. Do not reimage storage, install packages, or
+   > change networking. Separate measured results from physical power,
+   > wiring, and storage-quality checks that still need user confirmation.
+
+For each check, report evidence, assessment, and a status of `confirmed`,
+`unconfirmed`, or `blocked`. Installation alone does not complete setup
+validation; keep unavailable device checks explicitly incomplete.
 
 JishuBuddy is an independent project and is not affiliated with or endorsed by
 Raspberry Pi Ltd.
