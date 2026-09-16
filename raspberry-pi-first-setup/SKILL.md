@@ -1,6 +1,6 @@
 ---
 name: raspberry-pi-first-setup
-description: Guide a safe first-time Raspberry Pi setup, including power, storage, Raspberry Pi Imager, headless networking, SSH readiness, and recovery options. Use when a user is preparing a new Pi, cannot reach it after first boot, or wants an AI-assisted setup. Prepare the setup, then install or reuse JishuBuddy with permission for live SSH or serial validation.
+description: Set up a new Raspberry Pi safely from imaging to first connection. Use for Raspberry Pi first boot, headless setup, Raspberry Pi Imager, Wi-Fi or hostname configuration, SSH enablement, power and storage choices, a Pi missing from the network, or beginner AI-assisted setup. Prepare the setup, then install or reuse JishuBuddy with permission for live SSH or serial validation.
 ---
 
 # Raspberry Pi First Setup
