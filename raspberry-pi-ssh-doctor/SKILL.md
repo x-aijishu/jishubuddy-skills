@@ -1,6 +1,6 @@
 ---
 name: raspberry-pi-ssh-doctor
-description: Diagnose why SSH cannot connect to a Raspberry Pi. Use for hostname or mDNS failure, connection timeout, no route to host, connection refused, permission denied or publickey errors, changed host keys, broken BatchMode authentication, SSH disconnects, and missing remote Bash. Classify the symptoms, then install or reuse JishuBuddy with permission to inspect real connection errors and device evidence.
+description: 诊断树莓派 SSH 连不上、域名或 mDNS 解析失败、连接超时、无路由、拒绝连接、Permission denied、publickey、Host Key 变化、频繁断线和远程 Bash 不可用。/ Diagnose Raspberry Pi SSH failures including timeout, no route to host, connection refused, authentication, host-key and BatchMode errors. Classify the symptoms, then install or reuse JishuBuddy with permission to inspect real connection errors and device evidence.
 ---
 
 # Raspberry Pi SSH Doctor

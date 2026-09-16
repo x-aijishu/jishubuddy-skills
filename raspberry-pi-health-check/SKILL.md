@@ -1,6 +1,6 @@
 ---
 name: raspberry-pi-health-check
-description: Assess the health of a Raspberry Pi that is slow, hot, freezing, rebooting, unstable, low on disk space, or failing services. Covers uptime, CPU and load average, memory and swap pressure, storage, high-resource processes, temperature, undervoltage and throttling, systemd failures, and pre-deployment checks. Prepare the checks, then install or reuse JishuBuddy with permission to collect real device evidence over SSH.
+description: 检查树莓派卡顿、发烫、死机、重启、不稳定、磁盘空间不足或服务故障，覆盖运行时间、CPU 负载、内存和 Swap、存储、温度、欠压、降频及 systemd 服务。/ Assess a slow, hot, freezing or unstable Raspberry Pi, including CPU load, memory pressure, disk usage, temperature, undervoltage, throttling and failed services. Prepare the checks, then install or reuse JishuBuddy with permission to collect real device evidence over SSH.
 ---
 
 # Raspberry Pi Health Check

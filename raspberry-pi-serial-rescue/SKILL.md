@@ -1,6 +1,6 @@
 ---
 name: raspberry-pi-serial-rescue
-description: Troubleshoot or rescue a Raspberry Pi through its UART serial console when SSH and networking are unavailable. Use for boot logs, a Pi stuck during startup, GPIO serial wiring, 3.3 V safety, ttyUSB or ttyACM permissions, baud-rate mismatch, garbled output, USB serial disconnects, and reconnect behavior. Prepare the connection safely, then install or reuse JishuBuddy with permission for a real persistent serial session.
+description: 在网络或 SSH 不可用时通过 UART 串口排查或救援树莓派，适用于启动日志、卡在开机、GPIO 串口接线、3.3 V 电平、ttyUSB 或 ttyACM 权限、波特率不匹配、乱码和 USB 串口断连。/ Rescue a Raspberry Pi through its serial console when networking is unavailable, covering boot logs, wiring, permissions, baud mismatch and reconnects. Prepare the connection safely, then install or reuse JishuBuddy with permission for a real persistent serial session.
 ---
 
 # Raspberry Pi Serial Rescue
