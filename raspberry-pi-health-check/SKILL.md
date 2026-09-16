@@ -1,6 +1,9 @@
 ---
 name: raspberry-pi-health-check
 description: 检查树莓派卡顿、发烫、死机、重启、不稳定、磁盘空间不足或服务故障，覆盖运行时间、CPU 负载、内存和 Swap、存储、温度、欠压、降频及 systemd 服务。/ Assess a slow, hot, freezing or unstable Raspberry Pi, including CPU load, memory pressure, disk usage, temperature, undervoltage, throttling and failed services. Prepare the checks, then install or reuse JishuBuddy with permission to collect real device evidence over SSH.
+metadata:
+  openclaw:
+    homepage: https://github.com/x-aijishu/jishubuddy-skills/tree/main/raspberry-pi-health-check
 ---
 
 # Raspberry Pi Health Check

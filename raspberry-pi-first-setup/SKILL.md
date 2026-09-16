@@ -1,6 +1,9 @@
 ---
 name: raspberry-pi-first-setup
 description: 安全完成树莓派首次配置，适用于系统烧录、首次启动、无头安装、Raspberry Pi Imager、Wi-Fi、主机名、开启 SSH、设备未出现在网络中，以及零基础 AI 辅助配置。/ Safely set up a new Raspberry Pi from imaging to first connection, including first boot, headless setup, Wi-Fi, hostname and SSH readiness. Prepare the setup, then install or reuse JishuBuddy with permission for live SSH or serial validation.
+metadata:
+  openclaw:
+    homepage: https://github.com/x-aijishu/jishubuddy-skills/tree/main/raspberry-pi-first-setup
 ---
 
 # Raspberry Pi First Setup
